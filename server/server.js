@@ -1,4 +1,3 @@
-// server/server.js
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
@@ -16,7 +15,6 @@ const io = socketIo(server, {
   }
 });
 
-// Хранилище сообщений (в памяти)
 const messages = {};
 
 io.on('connection', (socket) => {
@@ -24,22 +22,18 @@ io.on('connection', (socket) => {
 
   socket.on('join-room', (room) => {
     socket.join(room);
-    console.log(`Socket ${socket.id} joined room ${room}`);
-    // Отправить историю, если есть
-    if (messages[room]) {
-      socket.emit('room-history', messages[room]);
-    } else {
-      messages[room] = [];
-    }
+    if (!messages[room]) messages[room] = [];
+    const history = messages[room].slice(-50);
+    socket.emit('room-history', history);
   });
 
   socket.on('send-message', ({ room, message, user }) => {
     const msgData = { user, message, timestamp: Date.now() };
+    if (!messages[room]) messages[room] = [];
     messages[room].push(msgData);
     io.to(room).emit('new-message', msgData);
   });
 
-  // События для видео
   socket.on('sync-play', ({ room }) => {
     socket.to(room).emit('sync-play');
   });
@@ -51,11 +45,11 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    console.log('Client disconnected');
+    console.log('Client disconnected:', socket.id);
   });
 });
 
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
